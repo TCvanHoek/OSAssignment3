@@ -2,8 +2,8 @@
  * Operating Systems  [2INCO]  Practical Assignment
  * Condition Variables Application
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Nephtaly Aniceta   (0876672)
+ * Thijs Jan van Hoek (0944214)
  *
  * Grading:
  * Students who hand in clean code that fully satisfies the minimum requirements will get an 8. 
