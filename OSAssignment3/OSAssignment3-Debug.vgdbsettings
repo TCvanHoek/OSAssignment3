@@ -60,6 +60,7 @@
             <Value>en_US.UTF-8</Value>
           </Record>
         </Records>
+        <EnvironmentSetupFiles />
       </Environment>
       <BackgroundMode xsi:nil="true" />
     </BuildCommand>
@@ -79,6 +80,7 @@
             <Value>en_US.UTF-8</Value>
           </Record>
         </Records>
+        <EnvironmentSetupFiles />
       </Environment>
       <BackgroundMode xsi:nil="true" />
     </CleanCommand>
@@ -150,6 +152,7 @@
     <ShowMessageAfterExecuting>true</ShowMessageAfterExecuting>
   </CustomShortcuts>
   <UserDefinedVariables />
+  <ImportedPropertySheets />
   <CodeSense>
     <Enabled>Unknown</Enabled>
     <ExtraSettings>
@@ -160,4 +163,5 @@
       <Enabled>false</Enabled>
     </CodeAnalyzerSettings>
   </CodeSense>
+  <ProgramArgumentsSuggestions />
 </VisualGDBProjectSettings2>
