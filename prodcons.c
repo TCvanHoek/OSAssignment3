@@ -84,7 +84,8 @@ int main (void)
     // TODO: 
     // * startup the producer threads and the consumer thread
     // * wait until all threads are finished  
-    
+	printf("Nephtaly is gek!");
+	fflush(stdout);
     return (0);
 }
 
