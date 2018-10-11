@@ -392,5 +392,4 @@ ASALocalRun/
 *.vcxproj
 *.vcxproj.filters
 *.sln
-VisualGDB settings/
 /prodcons
