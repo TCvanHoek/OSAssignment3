@@ -23,7 +23,15 @@
 
 #include "prodcons.h"
 
+ // declare a mutex and a condition variable, and they are initialized as well
+static pthread_mutex_t      mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t       condition = PTHREAD_COND_INITIALIZER;
+
 static ITEM buffer[BUFFER_SIZE];
+static bool full;					// non-zero when buffer is full
+static bool empty;					// non-zero when buffer is empty
+static bool ready;					// non-zero when all items are handled
+static int buffer_pos				// position of last entry in buffer
 
 static void rsleep (int t);			// already implemented (see below)
 static ITEM get_next_item (void);	// already implemented (see below)
@@ -33,10 +41,15 @@ static ITEM get_next_item (void);	// already implemented (see below)
 static void * 
 producer (void * arg)
 {
-    while (true /* TODO: not all items produced */)
+	ITEM temp_item;
+
+    while (!full && !ready)
     {
         // TODO: 
         // * get the new item
+
+		temp_item = get_next_item();
+		fprintf(stderr, "Producer: %lx got item %d", pthread_self(), temp_item);
 		
         rsleep (100);	// simulating all kind of activities...
 		
@@ -51,6 +64,16 @@ producer (void * arg)
         //      possible-cv-signals;
         //      mutex-unlock;
         //
+
+		pthread_mutex_lock(&mutex);
+		buffer_pos++;
+		buffer[buffer_pos] = temp_item;
+		if (buffer_pos == BUFFER_SIZE - 1)
+			full = 1;
+		empty = 0;
+		pthread_mutex_unlock(&mutex);
+
+
         // (see condition_test() in condition_basics.c how to use condition variables)
     }
 	return (NULL);
@@ -60,7 +83,9 @@ producer (void * arg)
 static void * 
 consumer (void * arg)
 {
-    while (true /* TODO: not all items retrieved from buffer[] */)
+	ITEM temp_item;
+
+    while (!empty)
     {
         // TODO: 
 		// * get the next item from buffer[]
@@ -73,6 +98,20 @@ consumer (void * arg)
         //      critical-section;
         //      possible-cv-signals;
         //      mutex-unlock;
+
+		pthread_mutex_lock(&mutex);
+		
+		buffer[buffer_pos] = temp_item;
+		printf("%d", temp_item);
+
+		if (buffer_pos == 0) {
+			empty = 1;
+		}
+		else {
+			buffer_pos--;
+		}
+		full = 0;
+		pthread_mutex_unlock(&mutex);
 		
         rsleep (100);		// simulating all kind of activities...
     }
