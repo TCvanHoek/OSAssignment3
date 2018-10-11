@@ -31,7 +31,7 @@
 static pthread_mutex_t      mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t       condition = PTHREAD_COND_INITIALIZER;
 
-pthread_t   thread_id[NROF_PRODUCERS + 1];
+pthread_t   thread_id[NROF_PRODUCERS + 1]; // Needed threads is # of producers + 1 consumer
 
 sem_t	*sem_full;
 sem_t	*sem_empty;
@@ -41,25 +41,18 @@ static char semaphoreName_empty[50];
 static ITEM buffer[BUFFER_SIZE];
 static bool empty = 1;					// non-zero when buffer is empty
 static bool ready = 0;					// non-zero when all items are handled
-static int i = 0;						// position of last entry in buffer
-static int j = 0;
+static int i = 0;						// position of last entry of producer in buffer
+static int j = 0;						// position of last fetch of consumer from buffer
 
-static void rsleep (int t);			// already implemented (see below)
-static ITEM get_next_item (void);	// already implemented (see below)
+static void rsleep (int t);				// already implemented (see below)
+static ITEM get_next_item (void);		// already implemented (see below)
 
 
 /* producer thread */
 static void * 
 producer (void * arg)
 {
-	ITEM temp_item = get_next_item();
-	fprintf(stderr, "Producer: %lx got item %d\n", pthread_self(), temp_item);
-
-	sem_wait(sem_full);
-	pthread_mutex_lock(&mutex);
-	buffer[0] = temp_item;
-	sem_post(sem_empty);
-	pthread_mutex_unlock(&mutex);
+	ITEM temp_item;
 
     while (!ready)
     {
@@ -89,15 +82,17 @@ producer (void * arg)
         //      mutex-unlock;
         //
 
-		i++;
-		if  (i >= BUFFER_SIZE){
-			i = 0;
-		}
+
 		pthread_mutex_lock(&mutex);
 		buffer[i] = temp_item;
 		sem_post(sem_empty);
-		pthread_mutex_unlock(&mutex);
 
+		// Producer iterates over all buffer entries
+		i++;
+		if (i >= BUFFER_SIZE) {
+			i = 0;
+		}
+		pthread_mutex_unlock(&mutex);
 
         // (see condition_test() in condition_basics.c how to use condition variables)
     }
@@ -128,15 +123,19 @@ consumer (void * arg)
 		sem_wait(sem_empty);
 		pthread_mutex_lock(&mutex);
 		next_item = buffer[j];
+		buffer[j] = 0;
 		sem_post(sem_full);
 		pthread_mutex_unlock(&mutex);
 
+		// Consumer iterates over all buffer entries
 		j++;
 		if  (j >= BUFFER_SIZE){
 			j = 0;
 		}
 		printf("%d\n", next_item);
 		fprintf(stderr, "\tConsumer: %lx printed item %d\n", pthread_self(), next_item);
+
+		// If last entry is found, end consumer thread.
 		if (next_item == NROF_ITEMS)
 			break;
 		
@@ -260,11 +259,11 @@ get_next_item(void)
 }
 
 void init() {
-	// Create a unique semaphore name
+	// Create unique semaphore names
 	sprintf(semaphoreName_full, "Semaphore_full_%d", getpid());
 	sprintf(semaphoreName_empty, "Semaphore_empty_%d", getpid());
 
-	// Open a semaphore with the count of max number of threads
+	// Open a semaphore for the consumer. 0 when buffer is empty, BUFFER_SIZE when full.
 	sem_empty = sem_open(semaphoreName_empty, O_CREAT, 0777, 0);
 	if (sem_empty == SEM_FAILED)
 	{
@@ -272,7 +271,7 @@ void init() {
 		exit(1);
 	}
 
-	// Open a semaphore with the count of max number of threads
+	// Open a semaphore for the producer. BUFFER_SIZE when buffer is empty, 0 when full.
 	sem_full = sem_open(semaphoreName_full, O_CREAT, 0777, BUFFER_SIZE);
 	if (sem_full == SEM_FAILED)
 	{
@@ -280,7 +279,6 @@ void init() {
 		exit(1);
 	}
 }
-
 
 void deinit() {
 	// Close all semaphores
@@ -296,13 +294,13 @@ void deinit() {
 		exit(1);
 	}
 
-	// Unlink semaphore
+	// Unlink semaphores
 	if (sem_unlink(semaphoreName_full) != 0)
 	{
 		perror("Closing of semaphore failed");
 		exit(1);
 	}
-	// Unlink semaphore
+
 	if (sem_unlink(semaphoreName_empty) != 0)
 	{
 		perror("Closing of semaphore failed");
