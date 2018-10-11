@@ -392,5 +392,6 @@ ASALocalRun/
 *.vcxproj
 *.vcxproj.filters
 *.sln
+*.dat
 /prodcons
 /OSAssignment3/VisualGDBCache/OSAssignment3-Debug/SourceCache.dat
