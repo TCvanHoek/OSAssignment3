@@ -33,11 +33,11 @@ static pthread_cond_t       condition = PTHREAD_COND_INITIALIZER;
 
 pthread_t   thread_id[NROF_PRODUCERS + 1]; // Needed threads is # of producers + 1 consumer
 
-static ITEM buffer[BUFFER_SIZE];
-static bool ready = 0;					// non-zero when all items are handled
-static int i = 0;						// position of last entry of producer in buffer
-static int j = 0;						// position of last fetch of consumer from buffer
-static int items = 0;					// amount of items in buffer
+static ITEM buffer[BUFFER_SIZE];		// The buffer to be filled by the producers
+static bool ready = 0;					// Non-zero when all items are handled
+static int i = 0;						// Position of last entry of producer in buffer
+static int j = 0;						// Position of last fetch of consumer from buffer
+static int items = 0;					// Amount of items in buffer
 
 static void rsleep(int t);				// already implemented (see below)
 static ITEM get_next_item(void);		// already implemented (see below)
@@ -53,13 +53,7 @@ producer(void * arg)
 		// TODO: 
 		// * get the new item
 
-		temp_item = get_next_item();
-		fprintf(stderr, "Producer: %lx got item %d\n", pthread_self(), temp_item);
 
-		if (temp_item == NROF_ITEMS) {
-			ready = 1;
-			fprintf(stderr, "All items are picked\n");
-		}
 
 		rsleep(100);	// simulating all kind of activities...
 
@@ -77,26 +71,41 @@ producer(void * arg)
 
 		pthread_mutex_lock(&mutex);
 		while (items >= BUFFER_SIZE) {
+			pthread_cond_signal(&condition);	// Signal is sent to prevent deadlocks
 			pthread_cond_wait(&condition, &mutex);
 		}
-		buffer[i] = temp_item;
-		items++;
 
-		// If items = 1 send signal to consumer. Buffer is from empty state to partly filled state.
-		if (items == 1) {
-			usleep(1000);
-			pthread_cond_signal(&condition);
+		// If ready = TRUE, all items are picked and the thread can be exited
+		if (ready) {
+			pthread_mutex_unlock(&mutex);
+			break;
 		}
 
+		// Next item is picked
+		temp_item = get_next_item();
+		fprintf(stderr, "Producer: %lx got item %d\n", pthread_self(), temp_item);
+
+		if (temp_item == NROF_ITEMS) {
+			ready = 1;
+			fprintf(stderr, "All items are picked\n");
+		}
+
+		// Item is stored in the buffer
+		buffer[i] = temp_item;
+		items++;
 
 		// Producer iterates over all buffer entries
 		i++;
 		if (i >= BUFFER_SIZE) {
 			i = 0;
 		}
-		pthread_mutex_unlock(&mutex);
 
-		// (see condition_test() in condition_basics.c how to use condition variables)
+		// If items = 1 send signal to consumer. Buffer went from empty state to partly filled state.
+		if (items == 1) {
+			pthread_cond_signal(&condition);
+		}
+
+		pthread_mutex_unlock(&mutex);
 	}
 	fprintf(stderr, "Producer: %lx exits\n", pthread_self());
 	return (NULL);
@@ -123,19 +132,17 @@ consumer(void * arg)
 		//      mutex-unlock;
 
 		pthread_mutex_lock(&mutex);
-		while (items <= 0) {
+		while (!items && !ready) {
 			pthread_cond_wait(&condition, &mutex);
 		}
 		next_item = buffer[j];
 		buffer[j] = 0;
 		items--;
 
-		if (items == 4) {
-			usleep(1000);
+		// If items = BUFFER_SIZE - 1 then signal producer, buffer goes from full state to partly filled.
+		if (items == BUFFER_SIZE - 1 && ready == 0) {
 			pthread_cond_signal(&condition);
 		}
-
-		// If items = 4 signal producer, Buffer goes from full to partly filled.
 
 		pthread_mutex_unlock(&mutex);
 
@@ -154,6 +161,8 @@ consumer(void * arg)
 		rsleep(100);		// simulating all kind of activities...
 	}
 
+	// Extra broadcast is added to signal all waiting producer threads
+	pthread_cond_broadcast(&condition);
 	fprintf(stderr, "\tConsumer: %lx exits\n", pthread_self());
 	return (NULL);
 }
@@ -161,23 +170,8 @@ consumer(void * arg)
 int main(void)
 {
 	init();
-	// TODO: 
-	// * startup the producer threads and the consumer thread
-	// * wait until all threads are finished  
-
-	// Open a semaphore with the count of max number of threads
-
-	pthread_create(&thread_id[0], NULL, consumer, NULL);
-	for (int id = 1; id < NROF_PRODUCERS; id++) {
-		pthread_create(&thread_id[id], NULL, producer, NULL);
-	}
-	for (int id = 1; id < NROF_PRODUCERS; id++) {
-		pthread_join(thread_id[id], NULL);
-	}
-	pthread_join(thread_id[0], NULL);
-
-	fflush(stdout);
 	deinit();
+
 	return (0);
 }
 
@@ -274,9 +268,20 @@ get_next_item(void)
 }
 
 void init() {
+	// Create consumer thread
+	pthread_create(&thread_id[0], NULL, consumer, NULL);
 
+	// Create producer threads
+	for (int id = 1; id <= NROF_PRODUCERS; id++) {
+		pthread_create(&thread_id[id], NULL, producer, NULL);
+	}
 }
 
 void deinit() {
+	// Join all threads
+	for (int id = 0; id <= NROF_PRODUCERS; id++) {
+		pthread_join(thread_id[id], NULL);
+	}
 
+	fflush(stdout);
 }
