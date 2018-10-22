@@ -37,6 +37,7 @@ static ITEM buffer[BUFFER_SIZE];		// The buffer to be filled by the producers
 static bool ready = 0;					// Non-zero when all items are handled
 static int i = 0;						// Position of last entry of producer in buffer
 static int j = 0;						// Position of last fetch of consumer from buffer
+static ITEM next_item = 0;				// Value of next item to be in the buffer
 static int items = 0;					// Amount of items in buffer
 
 static void rsleep(int t);				// already implemented (see below)
@@ -54,6 +55,17 @@ producer(void * arg)
 		// * get the new item
 
 
+		// Next item is picked
+		if (!ready) {
+			temp_item = get_next_item();
+			fprintf(stderr, "Producer: %lx got item %d\n", pthread_self(), temp_item);
+		}
+
+		if (temp_item == NROF_ITEMS) {
+			ready = 1;
+			fprintf(stderr, "All items are picked\n");
+		}
+
 
 		rsleep(100);	// simulating all kind of activities...
 
@@ -70,29 +82,15 @@ producer(void * arg)
 		//
 
 		pthread_mutex_lock(&mutex);
-		while (items >= BUFFER_SIZE) {
-			pthread_cond_signal(&condition);	// Signal is sent to prevent deadlocks
+		while (temp_item > next_item || items >= BUFFER_SIZE) {
 			pthread_cond_wait(&condition, &mutex);
-		}
-
-		// If ready = TRUE, all items are picked and the thread can be exited
-		if (ready) {
-			pthread_mutex_unlock(&mutex);
-			break;
-		}
-
-		// Next item is picked
-		temp_item = get_next_item();
-		fprintf(stderr, "Producer: %lx got item %d\n", pthread_self(), temp_item);
-
-		if (temp_item == NROF_ITEMS) {
-			ready = 1;
-			fprintf(stderr, "All items are picked\n");
 		}
 
 		// Item is stored in the buffer
 		buffer[i] = temp_item;
 		items++;
+
+		next_item++;
 
 		// Producer iterates over all buffer entries
 		i++;
@@ -101,10 +99,9 @@ producer(void * arg)
 		}
 
 		// If items = 1 send signal to consumer. Buffer went from empty state to partly filled state.
-		if (items == 1) {
-			pthread_cond_signal(&condition);
+		if (items > 0) {
+			pthread_cond_broadcast(&condition);
 		}
-
 		pthread_mutex_unlock(&mutex);
 	}
 	fprintf(stderr, "Producer: %lx exits\n", pthread_self());
@@ -115,8 +112,7 @@ producer(void * arg)
 static void *
 consumer(void * arg)
 {
-	ITEM next_item;
-
+	ITEM cons_item;
 	while (1)
 	{
 		// TODO: 
@@ -135,13 +131,13 @@ consumer(void * arg)
 		while (!items && !ready) {
 			pthread_cond_wait(&condition, &mutex);
 		}
-		next_item = buffer[j];
+		cons_item = buffer[j];
 		buffer[j] = 0;
 		items--;
 
 		// If items = BUFFER_SIZE - 1 then signal producer, buffer goes from full state to partly filled.
-		if (items == BUFFER_SIZE - 1 && ready == 0) {
-			pthread_cond_signal(&condition);
+		if (items < BUFFER_SIZE - 1) {
+			pthread_cond_broadcast(&condition);
 		}
 
 		pthread_mutex_unlock(&mutex);
@@ -151,12 +147,16 @@ consumer(void * arg)
 		if (j >= BUFFER_SIZE) {
 			j = 0;
 		}
-		printf("%d\n", next_item);
-		fprintf(stderr, "\tConsumer: %lx printed item %d\n", pthread_self(), next_item);
 
 		// If last entry is found, end consumer thread.
-		if (next_item == NROF_ITEMS)
+		if (cons_item == NROF_ITEMS)
 			break;
+
+		printf("%d\n", cons_item);
+		fprintf(stderr, "\tConsumer: %lx printed item %d\n", pthread_self(), cons_item);
+
+
+
 
 		rsleep(100);		// simulating all kind of activities...
 	}
