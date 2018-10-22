@@ -7,19 +7,19 @@
       <PathStyle>RemoteUnix</PathStyle>
     </CustomSourceDirectories>
     <BuildHost>
-      <HostName>192.168.163.130</HostName>
+      <HostName>192.168.56.103</HostName>
       <Transport>SSH</Transport>
-      <UserName>student</UserName>
+      <UserName>computation</UserName>
     </BuildHost>
     <MainSourceTransferCommand>
       <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
       <RemoteHost>
-        <HostName>192.168.163.130</HostName>
+        <HostName>192.168.56.103</HostName>
         <Transport>SSH</Transport>
-        <UserName>student</UserName>
+        <UserName>computation</UserName>
       </RemoteHost>
-      <LocalDirectory>C:\Users\s155286\source\repos\OSAssignment3</LocalDirectory>
-      <RemoteDirectory>/home/student/OSAssignment3</RemoteDirectory>
+      <LocalDirectory>C:\Users\s133140\source\repos\OSAssignment3</LocalDirectory>
+      <RemoteDirectory>/home/computation/OSAssignment3</RemoteDirectory>
       <FileMasks>
         <string>*</string>
         <string>-*.opensdf</string>
@@ -28,6 +28,7 @@
       </FileMasks>
       <TransferNewFilesOnly>true</TransferNewFilesOnly>
       <IncludeSubdirectories>true</IncludeSubdirectories>
+      <SelectedDirectories />
       <DeleteDisappearedFiles>true</DeleteDisappearedFiles>
       <ApplyGlobalExclusionList>true</ApplyGlobalExclusionList>
     </MainSourceTransferCommand>
@@ -133,6 +134,11 @@
     <DeploymentMode>Auto</DeploymentMode>
     <DeployWhenLaunchedWithoutDebugging>true</DeployWhenLaunchedWithoutDebugging>
     <SuppressTTYCreation>false</SuppressTTYCreation>
+    <CodeCoverage>
+      <Enabled>false</Enabled>
+      <CoverageReportDirectory>$(ProjectDir)\CoverageReports</CoverageReportDirectory>
+      <ExtraCoverageFileDirectories />
+    </CodeCoverage>
   </Debug>
   <CustomBuild>
     <PreSyncActions />
